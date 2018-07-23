@@ -96,4 +96,6 @@ private:
     jkps::engine::ParticleSystem _sprayParticles;
     Material* _sprayMaterial;
 
+    bool _painting = false;
+
 };

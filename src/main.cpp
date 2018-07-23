@@ -227,7 +227,12 @@ static void renderLoop() {
                 rot.w = gamepadEvent.pose.orientation.w;
             }
 
-            controls.setVRController(i, pos, rot);
+            uint32_t pressedFlags = 0;
+            for( int j = 0; j < gamepadEvent.numButtons; ++j )
+            {
+                pressedFlags |= ((uint32_t) gamepadEvent.digitalButton[j] ) << j;
+            }
+            controls.setVRController(i, pos, rot, pressedFlags);
         }
     }
 
@@ -291,7 +296,7 @@ static EM_BOOL presentVRButtonEvent(int eventType, const EmscriptenMouseEvent* m
 
 static EM_BOOL gamepadConnectedEvent(int eventType, const EmscriptenGamepadEvent *gamepadEvent, void* userData)
 {
-    printf("gamepad connected %d \n", gamepadEvent->index);
+    printf("gamepad connected %ld \n", gamepadEvent->index);
     for( int i = 0; i < GAMEPAD_COUNT; ++i)
     {
         if (((gamepadsConnected >> i) & 1) != 1)
@@ -305,7 +310,7 @@ static EM_BOOL gamepadConnectedEvent(int eventType, const EmscriptenGamepadEvent
 
 static EM_BOOL gamepadDisconnectedEvent(int eventType, const EmscriptenGamepadEvent *gamepadEvent, void* userData)
 {
-    printf("gamepad disconnected %d \n", gamepadEvent->index);
+    printf("gamepad disconnected %ld \n", gamepadEvent->index);
     for (int i = 0; i < GAMEPAD_COUNT; ++i)
     {
         if (gamepads[i] == gamepadEvent->index)

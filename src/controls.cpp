@@ -43,10 +43,11 @@ void Controls::setMouseButton(int button, int action, int mods)
     }
 }
 
-void Controls::setVRController(int index, const glm::vec3& position, const glm::quat& orientation)
+void Controls::setVRController(int index, const glm::vec3& position, const glm::quat& orientation, uint32_t pressedFlags)
 {
     _vrControllers[index].position = position;
     _vrControllers[index].orientation = orientation;
+    _vrControllers[index].pressedFlags = pressedFlags;
 }
 
 bool Controls::buttonPressed(Button b)

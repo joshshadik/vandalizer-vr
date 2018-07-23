@@ -15,13 +15,20 @@ public:
 
     struct VRController 
     {
+        enum Button
+        {
+            TRIGGER
+        };
+
         glm::vec3 position;
         glm::quat orientation;
+
+        uint32_t pressedFlags;
     };
 
     void setCursorPosition(double xpos, double ypos);
     void setMouseButton(int button, int action, int mods);
-    void setVRController(int index, const glm::vec3& position, const glm::quat& orientation);
+    void setVRController(int index, const glm::vec3& position, const glm::quat& orientation, uint32_t pressedFlags);
 
     bool buttonPressed(Button b);
     bool buttonHeld(Button b);

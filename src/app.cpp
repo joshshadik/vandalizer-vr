@@ -90,18 +90,19 @@ void App::init()
     *updateMaterial = Material(updateProgram);
     *_sprayMaterial = Material(sprayProgram);
 
-    _sprayParticles.init(Primitives::quad(), _sprayMaterial, updateMaterial, 128);
+    _sprayParticles.init(Primitives::quad(), _sprayMaterial, updateMaterial, 64);
     int diffLoc = _sprayMaterial->getUniformLocation("diffuseColor");
     _sprayMaterial->setUniform(diffLoc, glm::vec4(1.0f, 0.0f, 0.0f, 0.25f));
 	_sprayMaterial->setBlended(true);
 	_sprayMaterial->setBlendFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     
 
-    _sprayParticles.lifetime(4.0f);
+    _sprayParticles.lifetime(0.15f);
     _sprayParticles.direction(glm::vec3(1.0f, 1.0f, -1.0f));
-    _sprayParticles.magnitude(20.0f);
+    _sprayParticles.magnitude(90.0f);
     _sprayParticles.randomness(0.15f);
     _sprayParticles.origin(glm::vec3(-0.5f, 0.5f, 0.0f));
+    _sprayParticles.size(0.0005f);
 
 
     composeVS = ResourceManager::getNextShader();
@@ -126,6 +127,7 @@ void App::init()
     _depthTexture = ResourceManager::getNextTexture();
 
     _screenBuffer = ResourceManager::getNextFramebuffer();
+
 
     int depthLoc = _composeMaterial->getUniformLocation("uDepthTex");
 
@@ -184,7 +186,10 @@ void App::render(const glm::ivec4& viewport)
 	_gltfModel.render(GLTFModel::Layer::Transparent);
     //_roomModel.render(GLTFModel::Layer::Transparent);
 
-	_sprayParticles.render();
+    if(_painting)
+    {
+	    _sprayParticles.render();
+    }
 	glDepthMask(GL_TRUE);
     
 
@@ -216,9 +221,17 @@ void App::update(double dt)
         //_gltfModel.setMatrix(_modelMtx);
     }
 
-    _sprayParticles.origin(_controls->getVRController(0).position);
+    Controls::VRController controller0 = _controls->getVRController(0);
 
-    _sprayParticles.update(dt);
+    _sprayParticles.origin(controller0.position);
+    _sprayParticles.direction(glm::vec3(0.0f, 0.0f, -1.0f) * glm::conjugate(controller0.orientation * glm::angleAxis(-1.57f, glm::vec3(1.0f, 0.0f, 0.0f))));
+    _painting = (controller0.pressedFlags & 2) == 2;
+
+    if(_painting)
+    {
+        _sprayParticles.update(dt);
+    }
+
 
 #ifdef _DEBUG
     GLenum er = glGetError();
@@ -258,8 +271,8 @@ void App::resize(const glm::ivec2 & size)
 
     Framebuffer::bindDefault();
 
-     int loc = _sprayMaterial->getUniformLocation("screenSize");
-    _sprayMaterial->setUniform(loc, glm::vec2(_screenSize));
+    //  int loc = _sprayMaterial->getUniformLocation("screenSize");
+    // _sprayMaterial->setUniform(loc, glm::vec2(_screenSize));
 }
 
 void App::overrideViewProjection(const glm::mat4 & view, const glm::mat4 & projection)
