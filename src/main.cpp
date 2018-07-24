@@ -19,8 +19,8 @@
 #include "resourceManager.h"
 
 GLFWwindow* window;
-static App app;
 static ResourceManager resourceManager;
+static App app;
 static Controls controls;
 
 static int vrDisplay = -1;
@@ -47,7 +47,7 @@ static void mouse_button_callback(GLFWwindow* window, int button, int action, in
 
 static void cursor_position_callback(GLFWwindow* window, double xpos, double ypos)
 {
-    controls.setCursorPosition(xpos / windowSize.x, ypos / windowSize.y);
+    controls.setCursorPosition(xpos / size.x, ypos / size.y);
 }
 
 

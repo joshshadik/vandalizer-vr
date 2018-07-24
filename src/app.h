@@ -6,6 +6,7 @@
 #include "framebuffer.h"
 #include "gltfModel.h"
 #include "particleSystem.h"
+#include "swapchain.h"
 
 #include "controls.h"
 
@@ -27,6 +28,8 @@
 #include <memory>
 
 using namespace jkps::gl;
+using namespace jkps::engine;
+using namespace jkps::util;
 
 struct GlobalUniforms
 {
@@ -55,6 +58,19 @@ public:
     void overrideViewProjection(const glm::mat4& view, const glm::mat4& projection);
 
 private:
+
+	struct PaintMesh
+	{
+		PaintMesh(Swapchain& sc) : swapchain(sc) {}
+
+		Mesh* mesh;
+		Transform* transform;
+		Swapchain swapchain;
+		GLint texLocation;
+		GLint paintTexLocation;
+	};
+
+
     Shader* vs;
     Shader* fs;
 
@@ -72,6 +88,8 @@ private:
     GLTFModel _gltfModel;
     GLTFModel _roomModel;
 
+	Model* _mainModel;
+
     glm::mat4 _modelMtx;
     glm::quat _modelRot;
     glm::vec3 _modelScale;
@@ -84,11 +102,20 @@ private:
     Material* _composeMaterial;
     Mesh* _composeMesh;
 
+	Material* _sprayPaintMaterial;
+	ShaderProgram* _sprayPaintProgram;
+	GLint _toolVPLoc;
+
     glm::ivec2 _screenSize;
 
     GlobalUniforms _gUniforms;
     MaterialUniformBlock* _globalUniformBlock;
-    std::vector<Texture*> _colorScreenTextures;
+    std::array<Texture*, 4> _colorScreenTextures;
+
+
+
+	std::vector<PaintMesh> _paintSwapchains;
+
     Texture* _depthTexture;
 
     Controls* _controls;

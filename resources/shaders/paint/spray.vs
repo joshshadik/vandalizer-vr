@@ -13,25 +13,17 @@ layout(std140) uniform Common
 	mat4 invVP;
 };
 
-uniform PBR
-{
-	vec4 diffuseFactor;
-	float metallicFactor;
-	float roughnessFactor;
-};
 
 uniform mat4 model;
-uniform vec4 diffuseColor;
-
-uniform sampler2D uDiffuse;
-uniform sampler2D uNormalTex;
-uniform sampler2D uOcclusionTex;
+uniform mat4 toolVP;
 
 out vec2 vTexcoord;
 out vec3 vNormal;
 out vec3 vTangent;
 out vec3 vBinormal;
 out vec4 vWorldPos;
+out vec4 vScreenPos;
+out vec4 vToolPos;
 
 void main(void)
 {
@@ -40,8 +32,10 @@ void main(void)
 	vTangent = normalize((model * vec4(aTangent.xyz, 0.0)).xyz);
 	vBinormal = cross(vNormal, vTangent) * aTangent.w;
 
-	vWorldPos = model * vec4(aPos.xyz, 1.0);
-	vec4 pos = projection * view * vWorldPos;
+	vec4 wPos = model * vec4(aPos.xyz, 1.0);
+	vWorldPos = wPos;
+	vScreenPos = projection * view * wPos;
+	vToolPos = toolVP * wPos;
 
-    gl_Position = pos; // vec4(vTexcoord * 2.0 - 1.0, 0.0, 1.0);
+    gl_Position = vec4(vTexcoord * 2.0 - 1.0, 0.0, 1.0);
 }
