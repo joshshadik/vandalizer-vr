@@ -29,6 +29,8 @@ uniform sampler2D uDiffuse;
 uniform sampler2D uNormalTex;
 uniform sampler2D uOcclusionTex;
 
+uniform vec2 uDiffuse_TexSize;
+
 layout(location = 0) out vec4 color;
 layout(location = 1) out vec4 position;
 layout(location = 2) out vec4 normal;
@@ -52,7 +54,24 @@ vec3 getNormal()
 
 
 void main(void) {
-    vec4 col = texture(uDiffuse, vTexcoord.st); // vec4(vTexcoord.st, 0.0, 1.0); //
+	vec4 col = vec4(0.0);
+	col.a = 0.0;
+
+	for( int x = -1; x <= 1; ++x )
+	{
+		for( int y = -1; y <= 1; ++y )
+		{
+			col += texture(uDiffuse, vTexcoord.st + uDiffuse_TexSize.st * vec2(x, y));
+		}
+	}
+
+	if( col.a > 1.0 )
+	{
+		col.rgb /= col.a;
+	}
+
+
+    //vec4 col = texture(uDiffuse, vTexcoord.st); // vec4(vTexcoord.st, 0.0, 1.0); //
 	col.a = 1.0;
 	col *= diffuseFactor;
 
