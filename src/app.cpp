@@ -3,6 +3,8 @@
 #include "resourceManager.h"
 #include "primitives.h"
 
+#include "util.h"
+
 #include <vector>
 
 #include <json.hpp>
@@ -13,6 +15,7 @@
 void App::init()
 {
     Primitives::init();
+    
     _quadGeo = Primitives::quad();
 
     _gUniforms.view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -1.0f, -2.15f));
@@ -22,13 +25,13 @@ void App::init()
     printf("size of gUniforms: %d\n", sizeof(_gUniforms));
 
     MaterialUniformBlock::Descriptor globalDescriptor{
-		{{"view", 0}, {"projection", sizeof(glm::mat4)}, {"invVP", sizeof(glm::mat4) * 2} },
+        { { "view", 0 },{ "projection", sizeof(glm::mat4) },{ "invVP", sizeof(glm::mat4) * 2 } },
         sizeof(glm::mat4) * 3
     };
 
     printf("size of descriptor: %d\n", globalDescriptor.second);
 
-    _globalUniformBlock = ResourceManager::default()->getNextUniformBlock();
+    _globalUniformBlock = ResourceManager::global()->getNextUniformBlock();
 
     *_globalUniformBlock = MaterialUniformBlock(globalDescriptor);
     _globalUniformBlock->setValue("view", &_gUniforms.view, sizeof(glm::mat4));
@@ -39,30 +42,32 @@ void App::init()
 
     _globalUniformBlock->bind(0);
 
-    vs = ResourceManager::default()->getNextShader();
-    fs = ResourceManager::default()->getNextShader();
+    vs = ResourceManager::global()->getNextShader();
+    fs = ResourceManager::global()->getNextShader();
 
-    Shader::loadFromFile(vs, "resources/shaders/standard.vs", Shader::Vertex); 
+    Shader::loadFromFile(vs, "resources/shaders/standard.vs", Shader::Vertex);
     Shader::loadFromFile(fs, "resources/shaders/standard.fs", Shader::Fragment);
 
-    program = ResourceManager::default()->getNextShaderProgram();
+    program = ResourceManager::global()->getNextShaderProgram();
     *program = ShaderProgram(vs, fs);
 
-    material = ResourceManager::default()->getNextMaterial();
+    material = ResourceManager::global()->getNextMaterial();
     *material = Material(program);
 
-    boxMesh = ResourceManager::default()->getNextMesh();
+    boxMesh = ResourceManager::global()->getNextMesh();
     *boxMesh = Mesh(_quadGeo, material);
 
     _modelPos = glm::vec3(0.0f, 0.5f, 0.0f);
     _modelRot = glm::quat_cast(glm::rotate(glm::mat4(1.0f), -1.57f, glm::vec3(1.0f, 0.0f, 0.0f)));
-    _modelScale = glm::vec3(0.001f);
+    _modelScale = glm::vec3(0.0009f);
 
-    _modelMtx =  glm::scale(glm::translate(glm::mat4_cast(_modelRot), _modelPos), _modelScale);
+    _modelMtx = glm::translate(glm::mat4_cast(_modelRot) * glm::scale(glm::mat4(),_modelScale) , _modelPos);
+
+    _vrOffset = glm::translate(glm::mat4(), glm::vec3(0.0f, 0.0f, -0.75f));
 
     GLTFModel::loadFromFile(&_gltfModel, "resources/models/venus_de_milo/scene.gltf", program);
-    _gltfModel.setMatrix( _modelMtx );
-	_mainModel = _gltfModel.model();
+    _gltfModel.setMatrix(_modelMtx);
+    _mainModel = _gltfModel.model();
 
 
     //_roomMtx = glm::scale(glm::translate(glm::mat4_cast(_modelRot), glm::vec3(0.0f, 7.5f, 0.0f)), glm::vec3(0.01f));
@@ -71,20 +76,20 @@ void App::init()
 
     //_gltfModel.setMatrix(glm::rotate(glm::mat4(1.0f), -1.57f, glm::vec3(1.0f, 0.0f, 0.0f)));
 
-    Shader* sprayUpdateVS = ResourceManager::default()->getNextShader();
-    Shader* sprayUpdateFS = ResourceManager::default()->getNextShader();
-    Shader* sprayRenderVS = ResourceManager::default()->getNextShader();
-    Shader* sprayRenderFS = ResourceManager::default()->getNextShader();
+    Shader* sprayUpdateVS = ResourceManager::global()->getNextShader();
+    Shader* sprayUpdateFS = ResourceManager::global()->getNextShader();
+    Shader* sprayRenderVS = ResourceManager::global()->getNextShader();
+    Shader* sprayRenderFS = ResourceManager::global()->getNextShader();
 
     Shader::loadFromFile(sprayUpdateVS, "resources/shaders/screen.vs", Shader::Vertex);
     Shader::loadFromFile(sprayUpdateFS, "resources/shaders/spray/pos-vel.fs", Shader::Fragment);
     Shader::loadFromFile(sprayRenderVS, "resources/shaders/spray/particle.vs", Shader::Vertex);
     Shader::loadFromFile(sprayRenderFS, "resources/shaders/spray/particle.fs", Shader::Fragment);
 
-    ShaderProgram* updateProgram = ResourceManager::default()->getNextShaderProgram();
-    ShaderProgram* sprayProgram = ResourceManager::default()->getNextShaderProgram();
-    Material* updateMaterial = ResourceManager::default()->getNextMaterial();
-    _sprayMaterial = ResourceManager::default()->getNextMaterial();
+    ShaderProgram* updateProgram = ResourceManager::global()->getNextShaderProgram();
+    ShaderProgram* sprayProgram = ResourceManager::global()->getNextShaderProgram();
+    Material* updateMaterial = ResourceManager::global()->getNextMaterial();
+    _sprayMaterial = ResourceManager::global()->getNextMaterial();
 
     *updateProgram = ShaderProgram(sprayUpdateVS, sprayUpdateFS);
     *sprayProgram = ShaderProgram(sprayRenderVS, sprayRenderFS);
@@ -93,9 +98,11 @@ void App::init()
 
     _sprayParticles.init(Primitives::quad(), _sprayMaterial, updateMaterial, 64);
     int diffLoc = _sprayMaterial->getUniformLocation("diffuseColor");
-    _sprayMaterial->setUniform(diffLoc, glm::vec4(1.0f, 0.0f, 0.0f, 0.25f));
-	_sprayMaterial->setBlended(true);
-	_sprayMaterial->setBlendFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    _paintColor = glm::vec4(0.0f, 1.0f, 1.0f, 1.0f);
+    _sprayMaterial->setUniform(diffLoc, glm::vec4(_paintColor.r * 0.7f, _paintColor.g * 0.7f, _paintColor.b * 0.7f, 0.1f));
+    _sprayMaterial->setBlended(true);
+    _sprayMaterial->setBlendFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 
     _sprayParticles.lifetime(0.15f);
@@ -106,29 +113,30 @@ void App::init()
     _sprayParticles.size(0.0005f);
 
 
-	Shader* sprayPaintVS = ResourceManager::default()->getNextShader();
-	Shader* sprayPaintFS = ResourceManager::default()->getNextShader();
+    Shader* sprayPaintVS = ResourceManager::global()->getNextShader();
+    Shader* sprayPaintFS = ResourceManager::global()->getNextShader();
 
-	Shader::loadFromFile(sprayPaintVS, "resources/shaders/paint/spray.vs", Shader::Vertex);
-	Shader::loadFromFile(sprayPaintFS, "resources/shaders/paint/spray.fs", Shader::Fragment);
+    Shader::loadFromFile(sprayPaintVS, "resources/shaders/paint/spray.vs", Shader::Vertex);
+    Shader::loadFromFile(sprayPaintFS, "resources/shaders/paint/spray.fs", Shader::Fragment);
 
-	_sprayPaintProgram = ResourceManager::default()->getNextShaderProgram();
-	*_sprayPaintProgram = ShaderProgram(sprayPaintVS, sprayPaintFS);
-	_sprayPaintMaterial = ResourceManager::default()->getNextMaterial();
-	*_sprayPaintMaterial = Material(_sprayPaintProgram);
-	_toolVPLoc = _sprayPaintMaterial->getUniformLocation("toolVP");
+    _sprayPaintProgram = ResourceManager::global()->getNextShaderProgram();
+    *_sprayPaintProgram = ShaderProgram(sprayPaintVS, sprayPaintFS);
+    _sprayPaintMaterial = ResourceManager::global()->getNextMaterial();
+    *_sprayPaintMaterial = Material(_sprayPaintProgram);
+    _toolVPLoc = _sprayPaintMaterial->getUniformLocation("toolVP");
+    _paintColorLoc = _sprayPaintMaterial->getUniformLocation("paintColor");
 
-    
+    _sprayPaintMaterial->setUniform(_paintColorLoc, _paintColor);
 
-    composeVS = ResourceManager::default()->getNextShader();
-    composeFS = ResourceManager::default()->getNextShader();
+    composeVS = ResourceManager::global()->getNextShader();
+    composeFS = ResourceManager::global()->getNextShader();
 
     Shader::loadFromFile(composeVS, "resources/shaders/compose.vs", Shader::Vertex);
     Shader::loadFromFile(composeFS, "resources/shaders/compose.fs", Shader::Fragment);
 
-    composeProgram = ResourceManager::default()->getNextShaderProgram();
-    _composeMaterial = ResourceManager::default()->getNextMaterial();
-    _composeMesh = ResourceManager::default()->getNextMesh();
+    composeProgram = ResourceManager::global()->getNextShaderProgram();
+    _composeMaterial = ResourceManager::global()->getNextMaterial();
+    _composeMesh = ResourceManager::global()->getNextMesh();
 
     *composeProgram = ShaderProgram(composeVS, composeFS);
     *_composeMaterial = Material(composeProgram);
@@ -136,12 +144,12 @@ void App::init()
 
     for (int i = 0; i < 4; ++i)
     {
-        _colorScreenTextures[i] = (ResourceManager::default()->getNextTexture());
+        _colorScreenTextures[i] = (ResourceManager::global()->getNextTexture());
     }
 
-    _depthTexture = ResourceManager::default()->getNextTexture();
+    _depthTexture = ResourceManager::global()->getNextTexture();
 
-    _screenBuffer = ResourceManager::default()->getNextFramebuffer();
+    _screenBuffer = ResourceManager::global()->getNextFramebuffer();
 
 
     int depthLoc = _composeMaterial->getUniformLocation("uDepthTex");
@@ -152,89 +160,90 @@ void App::init()
     _composeMaterial->setUniform(_composeMaterial->getUniformLocation("uPositionTex"), _colorScreenTextures[1]);
     _composeMaterial->setUniform(_composeMaterial->getUniformLocation("uNormalTex"), _colorScreenTextures[2]);
     _composeMaterial->setUniform(_composeMaterial->getUniformLocation("uMetalRoughOccTex"), _colorScreenTextures[3]);
-	_composeMaterial->setUniform(_composeMaterial->getUniformLocation("uDepthTex"), _depthTexture);
+    _composeMaterial->setUniform(_composeMaterial->getUniformLocation("uDepthTex"), _depthTexture);
 
 
-    Texture* sky = ResourceManager::default()->getNextTexture();
-	Texture::loadFromFile(sky, "resources/textures/241-sky.png", 3);
+    Texture* sky = ResourceManager::global()->getNextTexture();
+    Texture::loadFromFile(sky, "resources/textures/241-sky.png", 3);
 
-	_composeMaterial->setUniform(_composeMaterial->getUniformLocation("uSkyTex"), sky);
+    _composeMaterial->setUniform(_composeMaterial->getUniformLocation("uSkyTex"), sky);
 
     _composeMaterial->setUniform(_composeMaterial->getUniformLocation("uLightDirection"), glm::normalize(glm::vec3(0.0, -1.0, -1.0)));
 
-	{
-		auto meshList = _mainModel->getMeshes(Model::Layer::Opaque);
-		if (meshList)
-		{
-			auto iter = meshList->iter();
+    {
+        auto meshList = _mainModel->getMeshes(Model::Layer::Opaque);
+        if (meshList)
+        {
+            auto iter = meshList->iter();
 
-			if (iter->begin())
-			{
-				do
-				{
-					auto meshes = iter->current().meshes();
-					auto mIt = meshes->iter();
-					if (mIt->begin())
-					{
-						do
-						{
-							auto mesh = mIt->current();
+            if (iter->begin())
+            {
+                do
+                {
+                    auto meshes = iter->current().meshes();
+                    auto mIt = meshes->iter();
+                    if (mIt->begin())
+                    {
+                        do
+                        {
+                            auto mesh = mIt->current();
 
-							Texture* texOrig = mesh->material()->getTexture(mesh->material()->getUniformLocation("uDiffuse"));
-							Texture* tex0 = ResourceManager::default()->getNextTexture();
-							Texture* tex1 = ResourceManager::default()->getNextTexture();
+                            Texture* texOrig = mesh->material()->getTexture(mesh->material()->getUniformLocation("uDiffuse"));
+                            Texture* tex0 = ResourceManager::global()->getNextTexture();
+                            Texture* tex1 = ResourceManager::global()->getNextTexture();
 
-							*tex0 = Texture(texOrig->size(), GL_RGBA8, GL_RGBA);
-							*tex1 = Texture(texOrig->size(), GL_RGBA8, GL_RGBA);
+                            *tex0 = Texture(texOrig->size(), GL_RGBA8, GL_RGBA);
+                            *tex1 = Texture(texOrig->size(), GL_RGBA8, GL_RGBA);
 
-							std::array<Framebuffer*, 2> fbos;
-							{
-								NodeList<Texture*> fboColors(ResourceManager::default());
-								fboColors.insertBack(tex0);
+                            std::array<Framebuffer*, 2> fbos;
+                            {
+                                NodeList<Texture*> fboColors(ResourceManager::global());
+                                fboColors.insertBack(tex0);
 
-								fbos[0] = ResourceManager::default()->getNextFramebuffer();
-								*fbos[0] = Framebuffer(fboColors, nullptr, tex0->size());
-							}
+                                fbos[0] = ResourceManager::global()->getNextFramebuffer();
+                                *fbos[0] = Framebuffer(fboColors, nullptr, tex0->size());
+                            }
 
-							{
-								NodeList<Texture*> fboColors(ResourceManager::default());
-								fboColors.insertBack(tex1);
+                            {
+                                NodeList<Texture*> fboColors(ResourceManager::global());
+                                fboColors.insertBack(tex1);
 
-								fbos[1] = ResourceManager::default()->getNextFramebuffer();
-								*fbos[1] = Framebuffer(fboColors, nullptr, tex1->size());
-							}
+                                fbos[1] = ResourceManager::global()->getNextFramebuffer();
+                                *fbos[1] = Framebuffer(fboColors, nullptr, tex1->size());
+                            }
 
-							PaintMesh pm{ Swapchain(fbos) };
-							pm.mesh = mesh;
-							pm.transform = iter->current().transform();
-							pm.texLocation = mesh->material()->getUniformLocation("uDiffuse");
-							pm.paintTexLocation = _sprayPaintMaterial->getUniformLocation("uDiffuse");
+                            PaintMesh pm{ Swapchain(fbos) };
+                            pm.mesh = mesh;
+                            pm.transform = iter->current().transform();
+                            pm.texLocation = mesh->material()->getUniformLocation("uDiffuse");
+                            pm.paintTexLocation = _sprayPaintMaterial->getUniformLocation("uDiffuse");
+                            pm.originalTexture = texOrig;
 
-							mesh->material()->setUniform(mesh->material()->getUniformLocation("uDiffuse_TexSize"), glm::vec2(1.0f / texOrig->size().x, 1.0f / texOrig->size().y));
+                            mesh->material()->setUniform(mesh->material()->getUniformLocation("uDiffuse_TexSize"), glm::vec2(1.0f / texOrig->size().x, 1.0f / texOrig->size().y));
 
 
-							_paintSwapchains.push_back(pm);
+                            _paintSwapchains.push_back(pm);
 
-						} while (mIt->next());
-					}
-				} while (iter->next());
-			}
-		}
+                        } while (mIt->next());
+                    }
+                } while (iter->next());
+            }
+        }
 
-	}
+    }
 
     glEnable(GL_CULL_FACE);
     glEnable(GL_DEPTH_TEST);
     glDisable(GL_BLEND);
 
 #ifdef _DEBUG
-	{
-		GLenum er = glGetError();
-		if (er != 0)
-		{
-			printf("error: %d \n", er);
-		}
-	}
+    {
+        GLenum er = glGetError();
+        if (er != 0)
+        {
+            printf("error: %d \n", er);
+        }
+    }
 #endif
 }
 
@@ -245,7 +254,7 @@ void App::render(const glm::ivec4& viewport)
     glClearColor(1.0f, 0.0f, 1.0f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	_mainModel->render(Model::Layer::Opaque);
+    _mainModel->render(Model::Layer::Opaque);
     //_roomModel.render(GLTFModel::Layer::Opaque);
 
     //boxMesh->render(glm::translate(glm::mat4(), glm::vec3(0.0, 0.0, -1.0)));
@@ -254,21 +263,21 @@ void App::render(const glm::ivec4& viewport)
 
     glClear(GL_DEPTH_BUFFER_BIT);
 
-	glDepthFunc(GL_ALWAYS);
+    glDepthFunc(GL_ALWAYS);
     _composeMesh->render();
     glDepthFunc(GL_LEQUAL);
 
 
-	glDepthMask(GL_FALSE);
-	_mainModel->render(Model::Layer::Transparent);
+    glDepthMask(GL_FALSE);
+    _mainModel->render(Model::Layer::Transparent);
     //_roomModel.render(GLTFModel::Layer::Transparent);
 
-    if(_painting)
+    if (_painting)
     {
-	    _sprayParticles.render();
+        _sprayParticles.render();
     }
-	glDepthMask(GL_TRUE);
-    
+    glDepthMask(GL_TRUE);
+
 
 #ifdef _DEBUG
     GLenum er = glGetError();
@@ -286,31 +295,58 @@ void App::update(double dt)
 
     Controls::VRController controller0 = _controls->getVRController(0);
 
-    _sprayParticles.origin(controller0.position);
-    _sprayParticles.direction(glm::vec3(0.0f, 0.0f, -1.0f) * glm::conjugate(controller0.orientation * glm::angleAxis(-1.57f, glm::vec3(1.0f, 0.0f, 0.0f))));
+    glm::quat sprayRot = glm::quat_cast(glm::inverse(_vrOffset)) * controller0.orientation * glm::angleAxis(-1.57f, glm::vec3(1.0f, 0.0f, 0.0f));
+    glm::vec3 sprayPos = glm::inverse(_vrOffset) * glm::vec4(controller0.position, 1.0);
+    _sprayParticles.origin(sprayPos);
+    _sprayParticles.direction(glm::vec3(0.0f, 0.0f, -1.0f) * glm::conjugate(sprayRot));
     _painting = (controller0.pressedFlags & 2) == 2;
 
-    if(_painting)
+    if( controller0.pressedFlags != 0 )
+    {
+        //printf("controller pressed flags: %d \n", controller0.pressedFlags );
+    }
+
+
+    float hValue = controller0.axis[2];
+    float vValue = controller0.axis[3];
+
+    if( glm::abs(hValue) > 0.01 && glm::abs(vValue) > 0.01 )
+    {
+        float hue = atan2(vValue, hValue);
+        hue = (hue + glm::pi<float>()) / glm::two_pi<float>();
+
+        float saturation = glm::sqrt(hValue * hValue + vValue * vValue);
+
+        glm::vec3 rgb = HSVtoRGB(glm::vec3(hue, saturation, 1.0f));
+
+        //_paintColor = glm::vec4((hValue + 1.0f) * 0.5f, (vValue + 1.0f) * 0.5f, 1.0f, 1.0f);
+
+        _paintColor = glm::vec4(rgb, 1.0f);
+
+        _sprayPaintMaterial->setUniform(_paintColorLoc, _paintColor);
+    }
+
+    glm::mat4 toolVP;
+
+    if (_painting)
     {
         _sprayParticles.update(dt);
+
+        //printf("controller position: %f, %f, %f \n", controller0.position.x, controller0.position.y, controller0.position.z);
+        toolVP = glm::perspective(2.7f, 1.0f, 0.01f, 0.35f) * glm::inverse(glm::translate(glm::mat4(), sprayPos) * glm::mat4_cast(sprayRot)); // *glm::mat4_cast(sprayRot));
     }
 
     if (_controls->buttonHeld(Controls::MOUSE_RIGHT))
     {
         float rotAmount = _controls->deltaMousePos().x * 90.0f * (float)dt;
 
-		_gUniforms.view = glm::rotate(_gUniforms.view, rotAmount, glm::vec3(0.0, 1.0, 0.0));
-		_gUniforms.invVP = glm::inverse(_gUniforms.projection * _gUniforms.view);
+        _gUniforms.view = glm::rotate(_gUniforms.view, rotAmount, glm::vec3(0.0, 1.0, 0.0));
+        _gUniforms.invVP = glm::inverse(_gUniforms.projection * _gUniforms.view);
 
         _globalUniformBlock->setValue("view", &_gUniforms.view, sizeof(glm::mat4));
         _globalUniformBlock->setValue("invVP", &_gUniforms.invVP, sizeof(glm::mat4));
 
-		_globalUniformBlock->uploadData();
-
-        //_modelRot = glm::angleAxis(rotAmount, glm::vec3(0.0, 1.0, 0.0)) * _modelRot;
-        //_modelMtx = glm::scale(glm::translate(glm::mat4_cast(_modelRot), _modelPos), _modelScale);
-        //_gltfModel.setMatrix(_modelMtx);
-
+        _globalUniformBlock->uploadData();
     }
     else if (_controls->buttonHeld(Controls::MOUSE_LEFT))
     {
@@ -324,12 +360,17 @@ void App::update(double dt)
 
         scaledOffset.x = scaledOffset.x / scaledOffset.w;
         scaledOffset.y = scaledOffset.y / scaledOffset.w;
+        scaledOffset.z = 0.5f;
 
-        glm::mat4 toolVP = (glm::translate(glm::mat4(), glm::vec3(scaledOffset)) * (glm::perspective(1.2f, 1.0f, 1.f, 30.0f) * _gUniforms.view));
+        toolVP = (glm::translate(glm::mat4(), glm::vec3(scaledOffset)) * (glm::perspective(1.2f, 1.0f, 1.f, 10.0f) * _gUniforms.view));
 
+        _painting = true;
+    }
+
+    if (_painting)
+    {
+        static bool firstPaint = true;
         _sprayPaintMaterial->setUniform(_toolVPLoc, toolVP);
-        _sprayParticles.origin(_controls->getVRController(0).position);
-
 
         glDisable(GL_CULL_FACE);
         for (int i = 0; i < _paintSwapchains.size(); ++i)
@@ -341,7 +382,7 @@ void App::update(double dt)
             glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-            _sprayPaintMaterial->setUniform(pm->paintTexLocation, pm->swapchain.front()->color());
+            _sprayPaintMaterial->setUniform(pm->paintTexLocation, firstPaint ? pm->originalTexture : pm->swapchain.front()->color());
             pm->mesh->render(pm->transform->worldMatrix(), _sprayPaintMaterial);
 
             pm->swapchain.swap();
@@ -351,6 +392,10 @@ void App::update(double dt)
             pm->mesh->material()->setUniform(pm->texLocation, pm->swapchain.front()->color());
         }
 
+        if( firstPaint == true )
+        {
+            firstPaint = false;
+        }
         glEnable(GL_CULL_FACE);
     }
 
@@ -371,7 +416,7 @@ void App::setControls(Controls * controls)
 
 void App::resize(const glm::ivec2 & size)
 {
-	static bool firstResize = true;
+    static bool firstResize = true;
 
     _screenSize = size;
 
@@ -389,38 +434,39 @@ void App::resize(const glm::ivec2 & size)
     *_colorScreenTextures[2] = Texture(size, GL_RGBA8, GL_RGBA);
     *_colorScreenTextures[3] = Texture(size, GL_RGBA8, GL_RGBA);
 
-	*_depthTexture = Texture(size, GL_DEPTH_COMPONENT24, GL_DEPTH_COMPONENT, GL_UNSIGNED_INT);
+    *_depthTexture = Texture(size, GL_DEPTH_COMPONENT24, GL_DEPTH_COMPONENT, GL_UNSIGNED_INT);
 
-	if (firstResize)
-	{
-		NodeList<Texture*> fboColors(ResourceManager::default());
-		for (int i = 0; i < 4; ++i)
-		{
-			fboColors.insertBack(_colorScreenTextures[i]);
-		}
+    if (firstResize)
+    {
+        NodeList<Texture*> fboColors(ResourceManager::global());
+        for (int i = 0; i < 4; ++i)
+        {
+            fboColors.insertBack(_colorScreenTextures[i]);
+        }
 
-		*_screenBuffer = Framebuffer(fboColors, _depthTexture, size);
-	}
-	else
-	{
-		NodeList<Texture*> fboColors = *_screenBuffer->colors();
-		*_screenBuffer = Framebuffer(fboColors, _depthTexture, size);
-	}
+        *_screenBuffer = Framebuffer(fboColors, _depthTexture, size);
+    }
+    else
+    {
+        NodeList<Texture*> fboColors = *_screenBuffer->colors();
+        *_screenBuffer = Framebuffer(fboColors, _depthTexture, size);
+    }
 
     Framebuffer::bindDefault();
 
-	if (firstResize)
-	{
-		firstResize = false;
-	}
+    if (firstResize)
+    {
+        firstResize = false;
+    }
 
 }
 
 void App::overrideViewProjection(const glm::mat4 & view, const glm::mat4 & projection)
 {
-    _globalUniformBlock->setValue("view", &view, sizeof(glm::mat4));
+    glm::mat4 v = view * _vrOffset;
+    _globalUniformBlock->setValue("view", &v, sizeof(glm::mat4));
     _globalUniformBlock->setValue("projection", &projection, sizeof(glm::mat4));
-    glm::mat4 invVP = glm::inverse(projection * view);
+    glm::mat4 invVP = glm::inverse(projection * v);
     _globalUniformBlock->setValue("invVP", &invVP, sizeof(glm::mat4));
 
     _globalUniformBlock->uploadData();

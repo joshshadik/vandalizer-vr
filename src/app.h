@@ -61,15 +61,15 @@ private:
 
 	struct PaintMesh
 	{
-		PaintMesh(Swapchain& sc) : swapchain(sc) {}
+		PaintMesh(Swapchain&& sc) : swapchain(std::move(sc)) {}
 
 		Mesh* mesh;
 		Transform* transform;
 		Swapchain swapchain;
 		GLint texLocation;
 		GLint paintTexLocation;
+        Texture* originalTexture;
 	};
-
 
     Shader* vs;
     Shader* fs;
@@ -95,6 +95,8 @@ private:
     glm::vec3 _modelScale;
     glm::vec3 _modelPos;
 
+    glm::mat4 _vrOffset;
+
     glm::mat4 _roomMtx;
 
     Framebuffer* _screenBuffer;
@@ -105,6 +107,7 @@ private:
 	Material* _sprayPaintMaterial;
 	ShaderProgram* _sprayPaintProgram;
 	GLint _toolVPLoc;
+    GLint _paintColorLoc;
 
     glm::ivec2 _screenSize;
 
@@ -115,6 +118,8 @@ private:
 
 
 	std::vector<PaintMesh> _paintSwapchains;
+
+    glm::vec4 _paintColor;
 
     Texture* _depthTexture;
 

@@ -19,6 +19,7 @@ layout(std140)  uniform Common
 
 uniform mat4 model;
 
+uniform vec4 paintColor;
 
 uniform sampler2D uDiffuse;
 uniform sampler2D uNormalTex;
@@ -46,9 +47,11 @@ void main(void) {
 	vec3 toolPos = vToolPos.xyz / vToolPos.w;
 
 	//vec2 scrOff = scrPos.xy - vec2(0.5);
-	if( length(toolPos.xy) < 0.025 )
+	if( length(toolPos.xy) < 0.05 && toolPos.z > 0.0 && toolPos.z < 1.0 )
 	{
-		col.rgb = vec3(1.0, 0.5, 0.5) * 0.2 + col.rgb * 0.8;
+		float a = (1.0 - toolPos.z) * paintColor.a;
+		a = mix(a, a * a, 0.75);
+		col.rgb = paintColor.rgb * a + col.rgb * (1.0 - a);
 	}
 
 	//col.rgb = vWorldPos.xyz;

@@ -232,6 +232,14 @@ static void renderLoop() {
             {
                 pressedFlags |= ((uint32_t) gamepadEvent.digitalButton[j] ) << j;
             }
+
+            for( int aa = 0; aa < gamepadEvent.numAxes; ++aa )
+            {
+                if( aa < 4 )
+                {
+                    controls.setVRControllerAxis(i, aa, gamepadEvent.axis[aa]);
+                }
+            }
             controls.setVRController(i, pos, rot, pressedFlags);
         }
     }

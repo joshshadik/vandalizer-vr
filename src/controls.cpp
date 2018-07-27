@@ -50,6 +50,11 @@ void Controls::setVRController(int index, const glm::vec3& position, const glm::
     _vrControllers[index].pressedFlags = pressedFlags;
 }
 
+void Controls::setVRControllerAxis(int index, int axis, float value)
+{
+    _vrControllers[index].axis[axis] = value;
+}
+
 bool Controls::buttonPressed(Button b)
 {
     return ((_pressedFlags >> (int)b) & 1) == 1;
