@@ -127,6 +127,7 @@ private:
 
     jkps::engine::ParticleSystem _sprayParticles;
     Material* _sprayMaterial;
+    GLint _sprayColorLoc;
 
     bool _painting = false;
 

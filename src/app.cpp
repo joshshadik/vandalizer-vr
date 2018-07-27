@@ -97,17 +97,17 @@ void App::init()
     *_sprayMaterial = Material(sprayProgram);
 
     _sprayParticles.init(Primitives::quad(), _sprayMaterial, updateMaterial, 64);
-    int diffLoc = _sprayMaterial->getUniformLocation("diffuseColor");
+    _sprayColorLoc = _sprayMaterial->getUniformLocation("diffuseColor");
 
     _paintColor = glm::vec4(0.0f, 1.0f, 1.0f, 1.0f);
-    _sprayMaterial->setUniform(diffLoc, glm::vec4(_paintColor.r * 0.7f, _paintColor.g * 0.7f, _paintColor.b * 0.7f, 0.1f));
+    _sprayMaterial->setUniform(_sprayColorLoc, glm::vec4(_paintColor.r * 0.7f, _paintColor.g * 0.7f, _paintColor.b * 0.7f, 0.1f));
     _sprayMaterial->setBlended(true);
     _sprayMaterial->setBlendFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 
-    _sprayParticles.lifetime(0.15f);
+    _sprayParticles.lifetime(0.25f);
     _sprayParticles.direction(glm::vec3(1.0f, 1.0f, -1.0f));
-    _sprayParticles.magnitude(90.0f);
+    _sprayParticles.magnitude(60.0f);
     _sprayParticles.randomness(0.15f);
     _sprayParticles.origin(glm::vec3(-0.5f, 0.5f, 0.0f));
     _sprayParticles.size(0.0005f);
@@ -324,6 +324,7 @@ void App::update(double dt)
         _paintColor = glm::vec4(rgb, 1.0f);
 
         _sprayPaintMaterial->setUniform(_paintColorLoc, _paintColor);
+        _sprayMaterial->setUniform(_sprayColorLoc, glm::vec4(_paintColor.r * 0.7f, _paintColor.g * 0.7f, _paintColor.b * 0.7f, 0.1f));
     }
 
     glm::mat4 toolVP;
@@ -333,7 +334,7 @@ void App::update(double dt)
         _sprayParticles.update(dt);
 
         //printf("controller position: %f, %f, %f \n", controller0.position.x, controller0.position.y, controller0.position.z);
-        toolVP = glm::perspective(2.7f, 1.0f, 0.01f, 0.35f) * glm::inverse(glm::translate(glm::mat4(), sprayPos) * glm::mat4_cast(sprayRot)); // *glm::mat4_cast(sprayRot));
+        toolVP = glm::perspective(2.55f, 1.0f, 0.01f, 0.45f) * glm::inverse(glm::translate(glm::mat4(), sprayPos) * glm::mat4_cast(sprayRot)); // *glm::mat4_cast(sprayRot));
     }
 
     if (_controls->buttonHeld(Controls::MOUSE_RIGHT))
