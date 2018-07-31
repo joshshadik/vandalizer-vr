@@ -202,7 +202,9 @@ static void renderLoop() {
     memcpy(&vrProjectionMatrices[0][0], data.leftProjectionMatrix, 16 * sizeof(float));
     memcpy(&vrProjectionMatrices[1][0], data.rightProjectionMatrix, 16 * sizeof(float));
 
-    for( int i = 0; i < GAMEPAD_COUNT; ++i)
+    int gamepadOffset = 0;
+
+    for( int i = 0; i < GAMEPAD_COUNT + gamepadOffset; ++i)
     {
         if (((gamepadsConnected >> i) & 1) == 1)
         {
@@ -218,6 +220,11 @@ static void renderLoop() {
                 pos.y = gamepadEvent.pose.position.y;
                 pos.z = gamepadEvent.pose.position.z;
             }
+            else
+            {
+                gamepadOffset += 1;
+                continue;
+            }
 
             if( (gamepadEvent.pose.poseFlags & 8) == 8)
             {
@@ -227,20 +234,20 @@ static void renderLoop() {
                 rot.w = gamepadEvent.pose.orientation.w;
             }
 
-            uint32_t pressedFlags = 0;
+            uint64_t pressedFlags = 0;
             for( int j = 0; j < gamepadEvent.numButtons; ++j )
             {
-                pressedFlags |= ((uint32_t) gamepadEvent.digitalButton[j] ) << j;
+                pressedFlags |= ((uint64_t) gamepadEvent.digitalButton[j] ) << j;
             }
 
             for( int aa = 0; aa < gamepadEvent.numAxes; ++aa )
             {
                 if( aa < 4 )
                 {
-                    controls.setVRControllerAxis(i, aa, gamepadEvent.axis[aa]);
+                    controls.setVRControllerAxis(i - gamepadOffset, aa, gamepadEvent.axis[aa]);
                 }
             }
-            controls.setVRController(i, pos, rot, pressedFlags);
+            controls.setVRController(i - gamepadOffset, pos, rot, pressedFlags);
         }
     }
 
@@ -348,6 +355,10 @@ void main_loop_wasm()
 
 int main(void)
 {
+#ifdef _DEBUG
+    printf("running in debug \n");
+#endif
+
 #ifdef USE_WASM
     if (!emscripten_vr_init(vr_init_callback, NULL)) {
         printf("Browser does not support WebVR\n");

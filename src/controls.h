@@ -27,12 +27,12 @@ public:
 
         std::array<float, 4> axis;
 
-        uint32_t pressedFlags;
+        uint64_t pressedFlags;
     };
 
     void setCursorPosition(double xpos, double ypos);
     void setMouseButton(int button, int action, int mods);
-    void setVRController(int index, const glm::vec3& position, const glm::quat& orientation, uint32_t pressedFlags);
+    void setVRController(int index, const glm::vec3& position, const glm::quat& orientation, uint64_t pressedFlags);
     void setVRControllerAxis(int index, int axis, float value);
 
     bool buttonPressed(Button b);

@@ -9,7 +9,7 @@
 
 #include <json.hpp>
 
-#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/constants.hpp>
 
 
 void App::init()
@@ -57,24 +57,45 @@ void App::init()
     boxMesh = ResourceManager::global()->getNextMesh();
     *boxMesh = Mesh(_quadGeo, material);
 
-    _modelPos = glm::vec3(0.0f, 0.5f, 0.0f);
-    _modelRot = glm::quat_cast(glm::rotate(glm::mat4(1.0f), -1.57f, glm::vec3(1.0f, 0.0f, 0.0f)));
-    _modelScale = glm::vec3(0.0009f);
+    _modelPos = glm::vec3(0.0f, 0.0f, 0.0f);
+    _modelRot = glm::quat_cast(glm::rotate(glm::mat4(1.0f), -glm::half_pi<float>(), glm::vec3(1.0f, 0.0f, 0.0f)));
+    _modelScale = glm::vec3(0.001f);
 
     _modelMtx = glm::translate(glm::mat4_cast(_modelRot) * glm::scale(glm::mat4(),_modelScale) , _modelPos);
 
     _vrOffset = glm::translate(glm::mat4(), glm::vec3(0.0f, 0.0f, -0.75f));
 
     GLTFModel::loadFromFile(&_gltfModel, "resources/models/venus_de_milo/scene.gltf", program);
+    //_modelMtx = glm::scale(glm::translate(glm::mat4_cast(_modelRot), glm::vec3(0.0f, 7.5f, 0.0f)), glm::vec3(0.01f));
     _gltfModel.setMatrix(_modelMtx);
     _mainModel = _gltfModel.model();
 
 
-    //_roomMtx = glm::scale(glm::translate(glm::mat4_cast(_modelRot), glm::vec3(0.0f, 7.5f, 0.0f)), glm::vec3(0.01f));
-    //GLTFModel::loadFromFile(&_roomModel, "resources/models/room/scene.gltf", program);
-    //_roomModel.setMatrix(_roomMtx);
+#ifdef PROPRIETARY_ASSETS
+    roomVS = ResourceManager::global()->getNextShader();
+    roomFS = ResourceManager::global()->getNextShader();
 
+    Shader::loadFromFile(roomVS, "resources/shaders/room.vs", Shader::Vertex);
+    Shader::loadFromFile(roomFS, "resources/shaders/room.fs", Shader::Fragment);
+
+    roomProgram = ResourceManager::global()->getNextShaderProgram();
+    *roomProgram = ShaderProgram(roomVS, roomFS);
+
+    //_roomMtx = glm::scale(glm::translate(glm::mat4_cast(_modelRot), glm::vec3(0.0f, 7.5f, 0.0f)), glm::vec3(0.01f));
+    GLTFModel::loadFromFile(&_roomGLTFModel, "resources/models/gallery/scene.gltf", roomProgram);
+    _roomModel = _roomGLTFModel.model();
+    //_roomModel.setMatrix(_roomMtx);
+    _roomModel->root()->setLocal(glm::scale(glm::translate(glm::mat4(), glm::vec3(-2.0f, 0.0f, -0.25f)) 
+            * glm::mat4_cast(glm::angleAxis(glm::pi<float>(), glm::vec3(0.0f, 1.0f, 0.0f)) * _modelRot), glm::vec3(0.02f)));
+    //_roomModel->root()->setLocal(glm::scale(glm::translate(glm::mat4_cast(_modelRot), glm::vec3(0.0f, 7.5f, 0.0f)), glm::vec3(0.01f)));
+    _roomModel->update(0.0f);
     //_gltfModel.setMatrix(glm::rotate(glm::mat4(1.0f), -1.57f, glm::vec3(1.0f, 0.0f, 0.0f)));
+
+#endif
+
+
+    GLTFModel::loadFromFile(&_sprayCanGLTFModel, "resources/models/spray_can/scene.gltf", program);
+    _sprayCanModel = _sprayCanGLTFModel.model();
 
     Shader* sprayUpdateVS = ResourceManager::global()->getNextShader();
     Shader* sprayUpdateFS = ResourceManager::global()->getNextShader();
@@ -96,7 +117,10 @@ void App::init()
     *updateMaterial = Material(updateProgram);
     *_sprayMaterial = Material(sprayProgram);
 
+    _particleParent = ResourceManager::global()->getNextTransform();
+
     _sprayParticles.init(Primitives::quad(), _sprayMaterial, updateMaterial, 64);
+    _sprayParticles.setParent(_particleParent);
     _sprayColorLoc = _sprayMaterial->getUniformLocation("diffuseColor");
 
     _paintColor = glm::vec4(0.0f, 1.0f, 1.0f, 1.0f);
@@ -106,10 +130,10 @@ void App::init()
 
 
     _sprayParticles.lifetime(0.25f);
-    _sprayParticles.direction(glm::vec3(1.0f, 1.0f, -1.0f));
-    _sprayParticles.magnitude(60.0f);
-    _sprayParticles.randomness(0.15f);
-    _sprayParticles.origin(glm::vec3(-0.5f, 0.5f, 0.0f));
+    _sprayParticles.direction(glm::vec3(0.0f, 0.0f, -1.0f));
+    _sprayParticles.magnitude(20.0f);
+    _sprayParticles.randomness(0.1f);
+    _sprayParticles.origin(glm::vec3(0.0f, 0.0f, 0.0f));
     _sprayParticles.size(0.0005f);
 
 
@@ -254,8 +278,12 @@ void App::render(const glm::ivec4& viewport)
     glClearColor(1.0f, 0.0f, 1.0f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+#ifdef PROPRIETARY_ASSETS
+    _roomModel->render(Model::Layer::Opaque);
+#endif
     _mainModel->render(Model::Layer::Opaque);
-    //_roomModel.render(GLTFModel::Layer::Opaque);
+    _sprayCanModel->render(Model::Layer::Opaque);
+    
 
     //boxMesh->render(glm::translate(glm::mat4(), glm::vec3(0.0, 0.0, -1.0)));
 
@@ -269,8 +297,10 @@ void App::render(const glm::ivec4& viewport)
 
 
     glDepthMask(GL_FALSE);
-    _mainModel->render(Model::Layer::Transparent);
-    //_roomModel.render(GLTFModel::Layer::Transparent);
+
+#ifdef PROPRIETARY_ASSETS
+    _roomModel->render(Model::Layer::Transparent);
+#endif
 
     if (_painting)
     {
@@ -290,51 +320,68 @@ void App::render(const glm::ivec4& viewport)
 
 void App::update(double dt)
 {
-    _sprayParticles.update(dt);
     _mainModel->update(dt);
 
     Controls::VRController controller0 = _controls->getVRController(0);
 
     glm::quat sprayRot = glm::quat_cast(glm::inverse(_vrOffset)) * controller0.orientation * glm::angleAxis(-1.57f, glm::vec3(1.0f, 0.0f, 0.0f));
     glm::vec3 sprayPos = glm::inverse(_vrOffset) * glm::vec4(controller0.position, 1.0);
-    _sprayParticles.origin(sprayPos);
-    _sprayParticles.direction(glm::vec3(0.0f, 0.0f, -1.0f) * glm::conjugate(sprayRot));
+    //_sprayParticles.origin(sprayPos);
+    //_sprayParticles.direction(glm::vec3(0.0f, 0.0f, -1.0f) * glm::conjugate(sprayRot));
     _painting = (controller0.pressedFlags & 2) == 2;
 
-    if( controller0.pressedFlags != 0 )
+    glm::mat4 sprayMtx = glm::translate(glm::mat4(), sprayPos);
+    
+
+    _particleParent->setLocal(sprayMtx * glm::mat4_cast(sprayRot));
+    _particleParent->update();
+    _sprayCanModel->root()->setLocal(sprayMtx  *  glm::mat4_cast(sprayRot * glm::angleAxis(-glm::pi<float>(), glm::vec3(0.0f, 1.0f, 0.0f)) * glm::angleAxis(-glm::half_pi<float>(), glm::vec3(1.0f, 0.0f, 0.0f)))
+            * glm::translate(glm::mat4(), glm::vec3(0.0f, 0.0f, -0.09f)) * glm::scale(glm::mat4(), glm::vec3(0.01f)));
+    _sprayCanModel->update(dt);
+
+    sprayMtx = sprayMtx * glm::mat4_cast(sprayRot);
+
+    if( (controller0.pressedFlags & 16) == 16 || (controller0.pressedFlags & 1) == 1  || (controller0.pressedFlags & 4) == 4)
     {
-        //printf("controller pressed flags: %d \n", controller0.pressedFlags );
+        float hValue = controller0.axis[2];
+        float vValue = controller0.axis[3];
+
+        if (glm::abs(controller0.axis[0]) > glm::abs(hValue))
+        {
+            hValue = controller0.axis[0];
+        }
+        if (glm::abs(controller0.axis[1]) > glm::abs(vValue))
+        {
+            vValue = controller0.axis[1];
+        }
+
+        if( glm::abs(hValue) > 0.01 && glm::abs(vValue) > 0.01 )
+        {
+            float hue = atan2(vValue, hValue);
+            hue = (hue + glm::pi<float>()) / glm::two_pi<float>();
+
+            float saturation = glm::sqrt(hValue * hValue + vValue * vValue);
+
+            glm::vec3 rgb = HSVtoRGB(glm::vec3(hue, 1.0f, saturation));
+
+            //_paintColor = glm::vec4((hValue + 1.0f) * 0.5f, (vValue + 1.0f) * 0.5f, 1.0f, 1.0f);
+
+            _paintColor = glm::vec4(rgb, 1.0f);
+
+            _sprayPaintMaterial->setUniform(_paintColorLoc, _paintColor);
+            _sprayMaterial->setUniform(_sprayColorLoc, glm::vec4(_paintColor.r * 0.7f, _paintColor.g * 0.7f, _paintColor.b * 0.7f, 0.1f));
+        }
     }
 
-
-    float hValue = controller0.axis[2];
-    float vValue = controller0.axis[3];
-
-    if( glm::abs(hValue) > 0.01 && glm::abs(vValue) > 0.01 )
-    {
-        float hue = atan2(vValue, hValue);
-        hue = (hue + glm::pi<float>()) / glm::two_pi<float>();
-
-        float saturation = glm::sqrt(hValue * hValue + vValue * vValue);
-
-        glm::vec3 rgb = HSVtoRGB(glm::vec3(hue, saturation, 1.0f));
-
-        //_paintColor = glm::vec4((hValue + 1.0f) * 0.5f, (vValue + 1.0f) * 0.5f, 1.0f, 1.0f);
-
-        _paintColor = glm::vec4(rgb, 1.0f);
-
-        _sprayPaintMaterial->setUniform(_paintColorLoc, _paintColor);
-        _sprayMaterial->setUniform(_sprayColorLoc, glm::vec4(_paintColor.r * 0.7f, _paintColor.g * 0.7f, _paintColor.b * 0.7f, 0.1f));
-    }
+    _sprayParticles.update(dt);
 
     glm::mat4 toolVP;
 
     if (_painting)
     {
-        _sprayParticles.update(dt);
-
+        
         //printf("controller position: %f, %f, %f \n", controller0.position.x, controller0.position.y, controller0.position.z);
-        toolVP = glm::perspective(2.55f, 1.0f, 0.01f, 0.45f) * glm::inverse(glm::translate(glm::mat4(), sprayPos) * glm::mat4_cast(sprayRot)); // *glm::mat4_cast(sprayRot));
+        toolVP = _sprayProjection * glm::inverse(sprayMtx); // *glm::mat4_cast(sprayRot));
     }
 
     if (_controls->buttonHeld(Controls::MOUSE_RIGHT))

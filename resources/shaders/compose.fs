@@ -77,9 +77,9 @@ void main()
 
 
 
-    if(n.w > 0.0 )
+    if(mro.w > 0.0 )
     {
-        col.rgb *= d;
+        col.rgb *= (d * 0.9 + 0.1);
         col.rgb = col.rgb * 0.5 + col.rgb * mro.z;
     }
 

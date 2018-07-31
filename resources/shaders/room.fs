@@ -87,5 +87,5 @@ void main(void) {
     color = col;
 	position = vWorldPos;
 	normal = vec4(n, 1.0);
-	metalRoughOcc = vec4(metallicFactor * occ.g, roughnessFactor * occ.b, occ.r, 1.0);
+	metalRoughOcc = vec4(metallicFactor * occ.g, roughnessFactor * occ.b, occ.r, 0.0);
 }

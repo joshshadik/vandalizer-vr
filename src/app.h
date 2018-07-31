@@ -24,8 +24,11 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 #include <memory>
+
+#define PROPRIETARY_ASSETS
 
 using namespace jkps::gl;
 using namespace jkps::engine;
@@ -86,9 +89,10 @@ private:
     Mesh* boxMesh;
 
     GLTFModel _gltfModel;
-    GLTFModel _roomModel;
+    GLTFModel _sprayCanGLTFModel;
 
 	Model* _mainModel;
+    Model* _sprayCanModel;
 
     glm::mat4 _modelMtx;
     glm::quat _modelRot;
@@ -97,7 +101,16 @@ private:
 
     glm::mat4 _vrOffset;
 
-    glm::mat4 _roomMtx;
+#ifdef PROPRIETARY_ASSETS
+    GLTFModel _roomGLTFModel;
+    Model* _roomModel;
+
+    Shader* roomVS;
+    Shader* roomFS;
+
+    ShaderProgram* roomProgram;
+
+#endif
 
     Framebuffer* _screenBuffer;
 
@@ -126,8 +139,11 @@ private:
     Controls* _controls;
 
     jkps::engine::ParticleSystem _sprayParticles;
+    Transform* _particleParent;
     Material* _sprayMaterial;
     GLint _sprayColorLoc;
+
+    const glm::mat4 _sprayProjection = glm::perspective(2.55f, 1.0f, 0.005f, 0.2f);
 
     bool _painting = false;
 
