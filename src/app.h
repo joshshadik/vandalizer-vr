@@ -94,6 +94,8 @@ private:
 	Model* _mainModel;
     Model* _sprayCanModel;
 
+    glm::mat4 _sprayCanOffset;
+
     glm::mat4 _modelMtx;
     glm::quat _modelRot;
     glm::vec3 _modelScale;
@@ -128,8 +130,6 @@ private:
     MaterialUniformBlock* _globalUniformBlock;
     std::array<Texture*, 4> _colorScreenTextures;
 
-
-
 	std::vector<PaintMesh> _paintSwapchains;
 
     glm::vec4 _paintColor;
@@ -142,6 +142,16 @@ private:
     Transform* _particleParent;
     Material* _sprayMaterial;
     GLint _sprayColorLoc;
+
+    struct ColorPicker
+    {
+        Mesh* mesh = nullptr;
+        Transform* transform = nullptr;
+        Material* material = nullptr;
+        GLint pickLoc = 0;
+    };
+
+    ColorPicker _colorPicker;
 
     const glm::mat4 _sprayProjection = glm::perspective(2.55f, 1.0f, 0.005f, 0.2f);
 

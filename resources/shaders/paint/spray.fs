@@ -50,9 +50,12 @@ void main(void) {
 	if( length(toolPos.xy) < 0.05 && toolPos.z > 0.0 && toolPos.z < 1.0 )
 	{
 		float a = (1.0 - toolPos.z) * paintColor.a;
-		a = -((a - 0.5) * 2.0);
-		a = mix(a, a * a * a, 0.2);
-		a = 1.0 - ((a + 1.0 ) * 0.5);
+		a = 1.0 - a;
+		a = a * a;
+		a = 1.0 - a;
+		// a = -((a - 0.5) * 2.0);
+		// a = mix(a, a * a * a, 0.2);
+		// a = 1.0 - ((a + 1.0 ) * 0.5);
 		col.rgb = paintColor.rgb * a + col.rgb * (1.0 - a);
 	}
 

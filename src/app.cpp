@@ -54,8 +54,6 @@ void App::init()
     material = ResourceManager::global()->getNextMaterial();
     *material = Material(program);
 
-    boxMesh = ResourceManager::global()->getNextMesh();
-    *boxMesh = Mesh(_quadGeo, material);
 
     _modelPos = glm::vec3(0.0f, 0.0f, 0.0f);
     _modelRot = glm::quat_cast(glm::rotate(glm::mat4(1.0f), -glm::half_pi<float>(), glm::vec3(1.0f, 0.0f, 0.0f)));
@@ -129,10 +127,10 @@ void App::init()
     _sprayMaterial->setBlendFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 
-    _sprayParticles.lifetime(0.25f);
+    _sprayParticles.lifetime(0.5f);
     _sprayParticles.direction(glm::vec3(0.0f, 0.0f, -1.0f));
     _sprayParticles.magnitude(20.0f);
-    _sprayParticles.randomness(0.1f);
+    _sprayParticles.randomness(0.08f);
     _sprayParticles.origin(glm::vec3(0.0f, 0.0f, 0.0f));
     _sprayParticles.size(0.0005f);
 
@@ -193,6 +191,40 @@ void App::init()
     _composeMaterial->setUniform(_composeMaterial->getUniformLocation("uSkyTex"), sky);
 
     _composeMaterial->setUniform(_composeMaterial->getUniformLocation("uLightDirection"), glm::normalize(glm::vec3(0.0, -1.0, -1.0)));
+
+    _colorPicker.mesh = ResourceManager::global()->getNextMesh();
+    _colorPicker.material = ResourceManager::global()->getNextMaterial();
+    _colorPicker.transform = ResourceManager::global()->getNextTransform();
+
+    Shader* colorPickerVS = ResourceManager::global()->getNextShader();
+    Shader* colorPickerFS = ResourceManager::global()->getNextShader();
+
+    Shader::loadFromFile(colorPickerVS, "resources/shaders/colorpicker.vs", Shader::Vertex);
+    Shader::loadFromFile(colorPickerFS, "resources/shaders/colorpicker.fs", Shader::Fragment);
+
+    ShaderProgram* colorPickerProgram = ResourceManager::global()->getNextShaderProgram();
+    *colorPickerProgram = ShaderProgram(colorPickerVS, colorPickerFS);
+
+    *_colorPicker.material = Material(colorPickerProgram);
+    _colorPicker.material->setBlended(true);
+    _colorPicker.material->setBlendFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    *_colorPicker.mesh = Mesh(_quadGeo, _colorPicker.material);
+    _colorPicker.pickLoc = _colorPicker.material->getUniformLocation("pickerLocation");
+
+    _colorPicker.material->setUniform(_colorPicker.pickLoc, glm::vec2(1.0, 0.0));
+    
+    _sprayCanModel->root()->addChild(_colorPicker.transform);
+    _colorPicker.transform->setLocal(
+        glm::translate(glm::mat4(), glm::vec3(0.0f, 5.0f, 7.5f)) 
+        * glm::rotate(glm::mat4(), -glm::half_pi<float>() * 0.7f, glm::vec3(1.0f, 0.0f, 0.0f)) 
+        * glm::scale(glm::mat4(), glm::vec3(2.0f))
+    );
+
+    _sprayCanOffset = glm::mat4_cast(glm::angleAxis(-glm::pi<float>(), glm::vec3(0.0f, 1.0f, 0.0f)) 
+        * glm::angleAxis(-glm::half_pi<float>(), glm::vec3(1.0f, 0.0f, 0.0f)))
+        * glm::translate(glm::mat4(), glm::vec3(0.0f, 0.0f, -0.09f)) 
+        * glm::scale(glm::mat4(), glm::vec3(0.01f));
 
     {
         auto meshList = _mainModel->getMeshes(Model::Layer::Opaque);
@@ -306,6 +338,9 @@ void App::render(const glm::ivec4& viewport)
     {
         _sprayParticles.render();
     }
+
+    _colorPicker.mesh->render(_colorPicker.transform->worldMatrix());
+
     glDepthMask(GL_TRUE);
 
 
@@ -335,43 +370,50 @@ void App::update(double dt)
 
     _particleParent->setLocal(sprayMtx * glm::mat4_cast(sprayRot));
     _particleParent->update();
-    _sprayCanModel->root()->setLocal(sprayMtx  *  glm::mat4_cast(sprayRot * glm::angleAxis(-glm::pi<float>(), glm::vec3(0.0f, 1.0f, 0.0f)) * glm::angleAxis(-glm::half_pi<float>(), glm::vec3(1.0f, 0.0f, 0.0f)))
-            * glm::translate(glm::mat4(), glm::vec3(0.0f, 0.0f, -0.09f)) * glm::scale(glm::mat4(), glm::vec3(0.01f)));
+    _sprayCanModel->root()->setLocal(sprayMtx  *  glm::mat4_cast(sprayRot) * _sprayCanOffset);
     _sprayCanModel->update(dt);
 
     sprayMtx = sprayMtx * glm::mat4_cast(sprayRot);
 
     if( (controller0.pressedFlags & 16) == 16 || (controller0.pressedFlags & 1) == 1  || (controller0.pressedFlags & 4) == 4)
     {
-        float hValue = controller0.axis[2];
-        float vValue = controller0.axis[3];
+        glm::vec2 axisValue;
+        axisValue.x = controller0.axis[2];
+        axisValue.y = controller0.axis[3];
 
-        if (glm::abs(controller0.axis[0]) > glm::abs(hValue))
+        if (glm::abs(controller0.axis[0]) > glm::abs(axisValue.x))
         {
-            hValue = controller0.axis[0];
+            axisValue.x = controller0.axis[0];
         }
-        if (glm::abs(controller0.axis[1]) > glm::abs(vValue))
+        if (glm::abs(controller0.axis[1]) > glm::abs(axisValue.y))
         {
-            vValue = controller0.axis[1];
+            axisValue.y = controller0.axis[1];
         }
 
-        if( glm::abs(hValue) > 0.01 && glm::abs(vValue) > 0.01 )
+        if( glm::abs(axisValue.x) > 0.01 && glm::abs(axisValue.y) > 0.01 )
         {
-            float hue = atan2(vValue, hValue);
+            float value = glm::length(axisValue);
+            if (value > 1.0f)
+            {
+                axisValue = glm::normalize(axisValue);
+                value = 1.0f;
+            }
+
+            float hue = atan2(axisValue.y, axisValue.x);
             hue = (hue + glm::pi<float>()) / glm::two_pi<float>();
 
-            float saturation = glm::sqrt(hValue * hValue + vValue * vValue);
-
-            glm::vec3 rgb = HSVtoRGB(glm::vec3(hue, 1.0f, saturation));
-
-            //_paintColor = glm::vec4((hValue + 1.0f) * 0.5f, (vValue + 1.0f) * 0.5f, 1.0f, 1.0f);
+            glm::vec3 rgb = HSVtoRGB(glm::vec3(hue, 1.0f, value));
 
             _paintColor = glm::vec4(rgb, 1.0f);
 
             _sprayPaintMaterial->setUniform(_paintColorLoc, _paintColor);
             _sprayMaterial->setUniform(_sprayColorLoc, glm::vec4(_paintColor.r * 0.7f, _paintColor.g * 0.7f, _paintColor.b * 0.7f, 0.1f));
         }
+
+        _colorPicker.material->setUniform(_colorPicker.pickLoc, axisValue);
     }
+
+    _colorPicker.transform->update();
 
     _sprayParticles.update(dt);
 
